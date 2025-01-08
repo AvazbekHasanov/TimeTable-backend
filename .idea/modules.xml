@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/backend.iml" filepath="$PROJECT_DIR$/.idea/backend.iml" />
+      <module fileurl="file://$USER_HOME$/Downloads/TimeTable/timetable-app/fullcalendar-examples/vue3/.idea/vue3.iml" filepath="$USER_HOME$/Downloads/TimeTable/timetable-app/fullcalendar-examples/vue3/.idea/vue3.iml" />
+    </modules>
+  </component>
+</project>
