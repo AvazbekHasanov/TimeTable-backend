@@ -2,7 +2,6 @@ import express, {query} from 'express';
 import pg from 'pg';
 
 import cors from 'cors';
-import result from "pg/lib/query.js";
 
 const { Pool } = pg;
 
@@ -17,12 +16,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 // PostgreSQL connection pool setup
+// const pool = new Pool({
+//     user: 'project',
+//     host: 'dev.realsoft.academy',
+//     database: 'project',
+//     password: 'p9DxPyhAYv82rnc3bdza',
+//     port: 7632,
+//     // ssl: {
+//     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
+//     // },
+// });
+
 const pool = new Pool({
-    user: 'project',
-    host: 'dev.realsoft.academy',
-    database: 'project',
-    password: 'p9DxPyhAYv82rnc3bdza',
-    port: 7632,
+    user: 'ioofgkja',
+    host: 'snuffleupagus.db.elephantsql.com',
+    database: 'ioofgkja',
+    password: '3krp76icZWDmV1lAegNoSvxBLV7OCZin',
+    port: 5432,
     // ssl: {
     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
     // },
