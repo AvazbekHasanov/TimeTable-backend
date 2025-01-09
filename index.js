@@ -1,7 +1,8 @@
-import express from 'express';
+import express, {query} from 'express';
 import pg from 'pg';
 
 import cors from 'cors';
+import result from "pg/lib/query.js";
 
 const { Pool } = pg;
 
@@ -17,11 +18,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 // PostgreSQL connection pool setup
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'postgres',
-    password: 'avazbek0003',
-    port: 5432,
+    user: 'project',
+    host: 'dev.realsoft.academy',
+    database: 'project',
+    password: 'p9DxPyhAYv82rnc3bdza',
+    port: 7632,
     // ssl: {
     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
     // },
@@ -32,6 +33,10 @@ app.use((err, req, res, next) => {
 });
 
 app.use(express.json());
+
+app.get('/', function (req, res) {
+    res.status(200).send('Hello world');
+})
 
 async function generateSchedule() {
     const client = await pool.connect();
@@ -388,7 +393,125 @@ where sg.academic_year_id in (select current_semester_id from groups where state
     }
 })
 
+app.get('/academic/groups', async (req, res) => {
+    const client = await pool.connect();
+    const query = `select sc.course_id, sc.id, sc.name as academic_group_name, dc.name as course_name, sc.student_count
+                   from science_groups sc
+                            left join department_courses dc on dc.id= sc.course_id and dc.state = 1
+                   where sc.state = 1`
+    try {
+        const result = await client.query(query)
+        res.status(200).json({result: result.rows})
+    }catch (e) {
+        res.status(500).json({massage: e.message})
+    }
+})
 
+app.post('/delete/curriculum', async (req, res) => {
+    const { id } = req.body;
+    const client = await pool.connect();
+    const  query = `update curriculum
+set state = 0
+where id = $1;`
+    try {
+        const result = await client.query(query, [id])
+        res.status(200).json({message: 'Deleted curriculum'})
+    }catch (e) {
+        res.status(500).json({massage: e.message})
+    }
+
+})
+
+app.post('/schedule/add-event', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { days, course_id, id } = req.body;
+
+        // Prepare arrays for each column
+        const scienceGroupIds = [];
+        const courseIds = [];
+        const types = [];
+        const daysOfWeek = [];
+        const classrooms = [];
+        const slotIds = [];
+
+        // Populate arrays from `days`, using `null` for missing IDs
+        days.forEach(day => {
+            scienceGroupIds.push(id); // Set from the main request
+            courseIds.push(course_id); // Set from the main request
+            types.push(day.type || 'default_type'); // Default for `type`
+            daysOfWeek.push(day.day || 0); // Default for `day`
+            classrooms.push(day.classroom || 'default_classroom'); // Default for `classroom`
+            slotIds.push(day.slot_id || 0); // Default for `slot_id`
+        });
+
+        // SQL query using UNNEST and handling null IDs with a sequence
+        const query = `
+            INSERT INTO curriculum (
+                id, science_group_id, course_id, course_lesson_type, academic_year_id, week_of_day,
+                classroom, slot_id, created_at, created_by
+            )
+            SELECT
+                COALESCE(new_id, nextval('curriculum_id_seq')),
+                science_group_id, course_id, course_lesson_type, academic_year_id, week_of_day,
+                classroom, slot_id, created_at, created_by
+            FROM UNNEST(
+                         $1::bigint[], 
+                         $2::bigint[],
+                         $3::bigint[],
+                         $4::lesson_type[],
+                         ARRAY[3]::int[], -- Academic year (constant for all rows)
+                         $5::int[],
+                         $6::text[],
+                         $7::int[],
+                         ARRAY[now()]::timestamp[], -- Created at (constant for all rows)
+                         ARRAY[1]::int[]            -- Created by (constant for all rows)
+                 ) AS t(new_id, science_group_id, course_id, course_lesson_type, academic_year_id, week_of_day, classroom, slot_id, created_at, created_by)
+                ON CONFLICT (id)
+            DO UPDATE SET
+                science_group_id = EXCLUDED.science_group_id,
+                                   course_id = EXCLUDED.course_id,
+                                   course_lesson_type = EXCLUDED.course_lesson_type,
+                                   academic_year_id = EXCLUDED.academic_year_id,
+                                   week_of_day = EXCLUDED.week_of_day,
+                                   classroom = EXCLUDED.classroom,
+                                   slot_id = EXCLUDED.slot_id,
+                                   created_at = EXCLUDED.created_at,
+                                   created_by = EXCLUDED.created_by;
+        `;
+
+        // Execute query with arrays
+        await client.query(query, [
+            days.map(day => day.id || null), // Pass `null` if `id` is missing
+            scienceGroupIds,
+            courseIds,
+            types,
+            daysOfWeek,
+            classrooms,
+            slotIds
+        ]);
+
+        res.status(200).json({message: 'Successfully added'});
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error adding events');
+    } finally {
+        client.release();
+    }
+});
+
+
+app.get('/academic/group/schedule', async (req, res) => {
+    const client = await pool.connect();
+    const query = `select id, week_of_day as day, slot_id, classroom, course_lesson_type as  type
+                   from curriculum where science_group_id = $1 and state = 1`
+    try {
+        const result = await client.query(query, [req.query.group_id])
+        res.status(200).json({result: result.rows})
+    }catch (e) {
+        res.status(500).json({massage: e.message})
+    }
+})
 
 app.get('/teacher/list', async (req, res) => {
     const client = await pool.connect();
@@ -397,6 +520,99 @@ app.get('/teacher/list', async (req, res) => {
     const result = await client.query(query);
     res.status(200).json(result.rows);
 })
+
+app.get('/teacher/list/admin', async (req, res) => {
+    const client = await pool.connect();
+    const query = `select id, teacher_id, name as teacher_name, to_char(created_at, 'DD.MM.YYYY') as created_at,
+       degree
+                   from department_teachers where state = 1;`
+    const result = await client.query(query);
+    res.status(200).json(result.rows);
+})
+
+
+app.get('/course/list/admin', async (req, res) => {
+    const client = await pool.connect();
+    const query = `select id, name as course_name, credit, to_char(created_at, 'DD.MM.YYYY') as created_at
+                   from department_courses where state = 1`
+    const result = await client.query(query);
+    res.status(200).json(result.rows);
+})
+
+app.post('/teacher/add', async (req, res) => {
+    const client = await pool.connect();
+    const { degree, teacher_name } = req.body;
+    try {
+        const query = `
+            INSERT INTO department_teachers (degree, department_id, created_at, created_by, name)
+            VALUES ($1, 2, now(), 1, $2)
+            RETURNING id, name as teacher_name, to_char(created_at, 'DD.MM.YYYY') as created_at, degree;
+        `;
+        const values = [degree, teacher_name];
+        console.log("values", values)
+        const result = await client.query(query, values);
+        res.status(201).json({
+            message: 'Teacher added successfully',
+            teacher: result.rows[0],
+        });
+    } catch (error) {
+        console.error('Error adding teacher:', error.message);
+        res.status(500).json({ error: 'Failed to add teacher' });
+    } finally {
+        client.release();
+    }
+});
+
+
+app.post('/academic/group/add', async (req, res) => {
+    const client = await pool.connect();
+    const { course_id, name } = req.body;
+    try {
+        const query = `
+            insert into science_groups (name, course_id, academic_year_id, student_count, created_at, created_by)
+            values ($1, $2, 3, 30, now(), 1)
+                returning name, student_count , to_char(created_at, 'DD.MM.YYYY') as created_at, id;
+        `;
+        const queryAddStudent = `insert into science_group_students (student_id, science_group_id, created_at, created_by)
+                                 values (1, $1, now(), 1);`
+        const values = [name, course_id];
+        console.log("values", values)
+        const result = await client.query(query, values);
+        const result_student = await client.query(queryAddStudent, [result.rows[0].id]);
+        res.status(200).json({
+            message: 'Group added successfully',
+            teacher: result.rows[0],
+        });
+    } catch (error) {
+        console.error('Error adding teacher:', error.message);
+        res.status(500).json({ error: 'Failed to add teacher' });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/course/add', async (req, res) => {
+    const client = await pool.connect();
+    const { course_name, credit,  } = req.body;
+    try {
+        const query = `insert into department_courses ( name, department_id, credit, created_at, created_by)
+                       values ($1, 2, $2, now(), 1)
+                           returning id,  name as course_name, credit, to_char(created_at, 'DD.MM.YYYY') as created_at;`;
+        const values = [course_name, credit];
+        console.log("values", values)
+        const result = await client.query(query, values);
+        res.status(201).json({
+            message: 'Teacher added successfully',
+            course: result.rows[0],
+        });
+    } catch (error) {
+        console.error('Error adding teacher:', error.message);
+        res.status(500).json({ error: 'Failed to add teacher' });
+    } finally {
+        client.release();
+    }
+});
+
 
 app.post('/remove-teacher', async (req, res) => {
     const { id, course_lesson_type } = req.body; // Access the body
