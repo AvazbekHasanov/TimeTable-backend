@@ -1,7 +1,9 @@
 import express, {query} from 'express';
 import pg from 'pg';
+import ExcelJS from 'exceljs';
 
 import cors from 'cors';
+import {createStyledExcelSheet} from "./routes/downloadSchedule.js";
 
 const { Pool } = pg;
 
@@ -654,6 +656,81 @@ app.post('/remove-teacher', async (req, res) => {
         if (client) {
             client.release(); // Release the client back to the pool
         }
+    }
+});
+
+
+
+
+// download to excel
+
+
+app.get('/download-schedule', async (req, res) => {
+    console.log("teacher_id", req.query.teacher_id);
+    try {
+        let schedules = [
+        ]
+
+        const client = await pool.connect();
+        const query = `
+        SELECT
+            c.id,
+            c.week_of_day,
+            l.key1 AS start,
+            l.key2 AS "end",
+        dc.name as course_name,
+        CONCAT(
+            regexp_replace(c.classroom, 'Room', chr(65 + trunc(random() * 4)::integer)),
+            ' - ',
+            dc.name
+        ) AS title,
+            c.classroom as location,
+        case when c.course_lesson_type = 'LECTURE' then 'Ma''ruza' else 'Amaliy' end as course_lesson_type,
+        case when dt.id is null then 'O''qituvchi briktrilmagan' else dt.name end as teacher
+    FROM
+        curriculum c
+    LEFT JOIN
+        lists l ON l.id = c.slot_id AND l.type_id = 10
+    LEFT JOIN
+        department_courses dc ON dc.id = c.course_id AND dc.state = 1
+    LEFT JOIN
+        science_group_teachers st ON st.science_group_id = c.science_group_id AND st.role = c.course_lesson_type and st.state = 1
+    LEFT JOIN
+        department_teachers dt ON dt.teacher_id = st.teacher_id AND dt.state = 1
+    WHERE
+        (CASE 
+        WHEN $1::INTEGER IS NOT NULL THEN dt.teacher_id = $1::INTEGER
+        ELSE true
+        END)
+        AND c.state = 1
+        AND c.science_group_id IN (
+        SELECT science_group_id FROM science_group_students WHERE student_id = 1
+        )
+        ORDER BY c.week_of_day;`;
+
+        try {
+            const result = await client.query(query, [req.query.teacher_id]);
+            console.log("result", result);
+            schedules = result.rows;
+            const workbook = await createStyledExcelSheet(schedules);
+
+            // Set response headers
+            const fileName = 'styled_schedules.xlsx';
+            res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+            // Write workbook to response
+            await workbook.xlsx.write(res);
+            res.end();
+        } catch (e) {
+            res.status(500).json({ message: e.message });
+        } finally {
+            client.release();
+        }
+
+
+    } catch (err) {
+        res.status(500).json({ message: 'Error generating Excel file', error: err.message });
     }
 });
 
