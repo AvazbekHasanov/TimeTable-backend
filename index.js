@@ -1,6 +1,5 @@
 import express, {query} from 'express';
 import pg from 'pg';
-import ExcelJS from 'exceljs';
 
 import cors from 'cors';
 import {createStyledExcelSheet} from "./routes/downloadSchedule.js";
@@ -9,6 +8,7 @@ const { Pool } = pg;
 
 const app = express();
 app.use(express.json());
+
 
 const corsOptions = {
     origin: '*',
@@ -347,6 +347,7 @@ app.get('/student/timetable', async (req, res) => {
     LEFT JOIN
         department_teachers dt ON dt.teacher_id = st.teacher_id AND dt.state = 1
     WHERE
+        dc.id is not null and 
         (CASE 
         WHEN $2::INTEGER IS NOT NULL THEN dt.teacher_id = $2::INTEGER
         ELSE true
@@ -625,6 +626,33 @@ app.post('/course/add', async (req, res) => {
     }
 });
 
+app.post('/delete/item', async (req, res) => {
+    const client = await pool.connect();
+    const { id, type  } = req.body;
+    const tableName = {
+        group: 'science_groups',
+        course: 'department_courses',
+        teacher: 'department_teachers'
+    }
+    try {
+        const query = `
+            update ${tableName[type]}
+            set state = 0
+            where id = ${id};`;
+        console.log("values", query)
+        const result = await client.query(query);
+        res.status(201).json({
+            message: 'Teacher deleted successfully',
+            course: result.rows[0],
+        });
+    } catch (error) {
+        console.error('Error adding teacher:', error.message);
+        res.status(500).json({ error: 'Failed to add teacher' });
+    } finally {
+        client.release();
+    }
+});
+
 
 app.post('/remove-teacher', async (req, res) => {
     const { id, course_lesson_type } = req.body; // Access the body
@@ -733,6 +761,8 @@ app.get('/download-schedule', async (req, res) => {
         res.status(500).json({ message: 'Error generating Excel file', error: err.message });
     }
 });
+
+
 
 
 const PORT = 3000;
