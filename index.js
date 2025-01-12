@@ -807,8 +807,10 @@ app.get('/download-schedule', async (req, res) => {
 
 
 const PORT = 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+server.timeout = 120000; // 120,000 milliseconds = 2 minutes
 
 
