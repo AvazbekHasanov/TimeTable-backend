@@ -29,19 +29,26 @@ app.use(cors(corsOptions));
 //     // },
 // });
 
+// const pool = new Pool({
+//     user: 'ioofgkja',
+//     host: 'snuffleupagus.db.elephantsql.com',
+//     database: 'ioofgkja',
+//     password: '3krp76icZWDmV1lAegNoSvxBLV7OCZin',
+//     port: 5432,
+//     // ssl: {
+//     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
+//     // },
+// });
+
 const pool = new Pool({
-    user: 'ioofgkja',
-    host: 'snuffleupagus.db.elephantsql.com',
-    database: 'ioofgkja',
-    password: '3krp76icZWDmV1lAegNoSvxBLV7OCZin',
+    user: 'postgres.bcngbqdjuayrndrejuio',
+    host: 'aws-0-ap-southeast-1.pooler.supabase.com',
+    database: 'postgres',
+    password: 'avazbek0003',
     port: 5432,
     // ssl: {
     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
     // },
-});
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something went wrong!');
 });
 
 app.use(express.json());
@@ -632,7 +639,8 @@ app.post('/delete/item', async (req, res) => {
     const tableName = {
         group: 'science_groups',
         course: 'department_courses',
-        teacher: 'department_teachers'
+        teacher: 'department_teachers',
+        classroom: 'classrooms',
     }
     try {
         const query = `
@@ -687,7 +695,40 @@ app.post('/remove-teacher', async (req, res) => {
     }
 });
 
+app.post('/add/classroom', async (req, res) => {
+    const client = await pool.connect();
+    const {number, building, capacity} = req.body;
+    const query = `insert into classrooms ( number, building, capacity, room_type)
+values ($1, $2, $3, 'LECTURE') 
+returning id, number, building, capacity;`
+    const values = [number, building, capacity];
+    try {
+        const result = await client.query(query, values);
+        res.status(200).json({
+            message: 'Classroom added successfully',
+            classroom: result.rows[0],
+        })
+    }catch(error) {
+        console.error('Error adding classroom:', error.message);
+        res.status(500).json({ error: 'Failed to add classroom' });
+    }
 
+})
+
+app.get('/classroom/list/admin', async (req, res) => {
+    const client = await pool.connect()
+    const query = `select id, number, building, capacity, concat(building, ' ', number) as name
+from classrooms  where state = 1;`
+    try {
+        const result = await client.query(query);
+        res.status(200).json({
+            classrooms: result.rows,
+        })
+    }catch (error) {
+        console.error('Error adding classroom:', error.message);
+        res.status(500).json({ error: 'Failed to get classrooms' });
+    }
+})
 
 
 // download to excel
