@@ -1,91 +1,69 @@
-import ExcelJS from 'exceljs';
+// models/scheduleModel.js
+import  pool  from "../db.js"; // Assuming `db` file handles database connection
 
-// Map days of the week to Uzbek
-const uzbekDays = {
-    1: 'Dushanba',
-    2: 'Seshanba',
-    3: 'Chorshanba',
-    4: 'Payshanba',
-    5: 'Juma',
-    6: 'Shanba',
-    7: 'Yakshanba',
+export const getSchedule = async (teacherId) => {
+    const query = `
+    SELECT
+        c.id,
+        c.week_of_day,
+        l.key1 AS start,
+        l.key2 AS "end",
+        dc.name as course_name,
+        CONCAT(
+            regexp_replace(c.classroom, 'Room', chr(65 + trunc(random() * 4)::integer)),
+            ' - ',
+            dc.name
+        ) AS title,
+        c.classroom as location,
+        case when c.course_lesson_type = 'LECTURE' then 'Ma''ruza' else 'Amaliy' end as course_lesson_type,
+        case when sct.name is null then 'O''qituvchi briktrilmagan' else sct.name end as teacher
+    FROM
+        curriculum c
+    LEFT JOIN
+        lists l ON l.id = c.slot_id AND l.type_id = 10
+    LEFT JOIN
+        department_courses dc ON dc.id = c.course_id AND dc.state = 1
+    left join lateral (
+            select STRING_AGG(dt.name, ', ') AS name
+            from science_group_teachers sct
+                     left join department_teachers dt on dt.teacher_id = sct.teacher_id and dt.state = 1
+            where sct.science_group_id = c.science_group_id and sct.state = 1
+              and sct.role = c.course_lesson_type)  sct on true
+    WHERE
+        (CASE 
+        WHEN $1::INTEGER IS NOT NULL THEN dt.teacher_id = $1::INTEGER
+        ELSE true
+        END)
+        AND c.state = 1
+        AND c.science_group_id IN (
+        SELECT science_group_id FROM science_group_students WHERE student_id = 1
+        )
+        ORDER BY c.week_of_day;
+    `;
+
+    try {
+        const result = await pool.query(query, [teacherId]);
+        return result.rows;
+    } catch (error) {
+        throw new Error('Error fetching schedule: ' + error.message);
+    }
 };
 
-export const createStyledExcelSheet = async (data) => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Schedules');
+export const deleteItemFromDatabase = async (tableName, id) => {
+    const client = await pool.connect();
 
-    // Define styles
-    const headerStyle = {
-        font: { bold: true, color: { argb: 'FFFFFFFF' } },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } },
-        alignment: { horizontal: 'center', vertical: 'middle' },
-        border: {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-        },
-    };
-
-    const bodyStyle = {
-        alignment: { horizontal: 'center', vertical: 'middle' },
-        border: {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-        },
-    };
-
-    // Add header row
-    worksheet.columns = [
-        { header: 'ID', key: 'id', width: 10 },
-        { header: 'Kun', key: 'week_of_day', width: 15 }, // "Kun" means "Day" in Uzbek
-        { header: 'Boshlanish', key: 'start', width: 25 },
-        { header: 'Tugash', key: 'end', width: 25 },
-        { header: 'Kurs', key: 'course_name', width: 20 },
-        { header: 'Sarlavha', key: 'title', width: 30 },
-        { header: 'Joylashuv', key: 'location', width: 15 },
-        { header: 'Dars turi', key: 'course_lesson_type', width: 15 },
-        { header: 'O‘qituvchi', key: 'teacher', width: 25 },
-    ];
-
-    worksheet.getRow(1).eachCell((cell) => {
-        cell.style = headerStyle;
-    });
-
-    // Add data rows
-    data.forEach((item) => {
-        const row = worksheet.addRow({
-            id: item.id,
-            week_of_day: uzbekDays[item.week_of_day] || 'Noma’lum', // Convert weekday to Uzbek
-            start: item.start,
-            end: item.end,
-            course_name: item.course_name,
-            title: item.title,
-            location: item.location,
-            course_lesson_type: item.course_lesson_type,
-            teacher: item.teacher,
-        });
-
-        // Apply body styles to all cells
-        row.eachCell((cell) => {
-            cell.style = bodyStyle;
-        });
-    });
-
-    // Auto-fit columns (if necessary)
-    worksheet.columns.forEach((column) => {
-        let maxLength = 0;
-        column.eachCell({ includeEmpty: true }, (cell) => {
-            const length = cell.value ? cell.value.toString().length : 0;
-            if (length > maxLength) {
-                maxLength = length;
-            }
-        });
-        column.width = maxLength + 5; // Add padding
-    });
-
-    return workbook;
+    try {
+        const query = `
+            UPDATE ${tableName}
+            SET state = 0
+            WHERE id = $1;
+        `;
+        const result = await client.query(query, [id]);
+        return result.rows[0]; // returns the result, you can adjust this as per your needs
+    } catch (error) {
+        console.error('Database error:', error.message);
+        throw new Error('Failed to delete item');
+    } finally {
+        client.release();
+    }
 };

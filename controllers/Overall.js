@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { getSchedule, deleteItemFromDatabase } from '../models/Overall.js';
 
 // Map days of the week to Uzbek
 const uzbekDays = {
@@ -11,6 +12,27 @@ const uzbekDays = {
     7: 'Yakshanba',
 };
 
+export const downloadSchedule = async (req, res) => {
+    const { teacher_id } = req.query;
+
+    try {
+        const schedules = await getSchedule(teacher_id);
+        const workbook = await createStyledExcelSheet(schedules);
+
+        // Set response headers
+        const fileName = 'styled_schedules.xlsx';
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        // Write workbook to response
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Function to create the Excel sheet
 export const createStyledExcelSheet = async (data) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Schedules');
@@ -41,7 +63,7 @@ export const createStyledExcelSheet = async (data) => {
     // Add header row
     worksheet.columns = [
         { header: 'ID', key: 'id', width: 10 },
-        { header: 'Kun', key: 'week_of_day', width: 15 }, // "Kun" means "Day" in Uzbek
+        { header: 'Kun', key: 'week_of_day', width: 15 },
         { header: 'Boshlanish', key: 'start', width: 25 },
         { header: 'Tugash', key: 'end', width: 25 },
         { header: 'Kurs', key: 'course_name', width: 20 },
@@ -59,7 +81,7 @@ export const createStyledExcelSheet = async (data) => {
     data.forEach((item) => {
         const row = worksheet.addRow({
             id: item.id,
-            week_of_day: uzbekDays[item.week_of_day] || 'Noma’lum', // Convert weekday to Uzbek
+            week_of_day: uzbekDays[item.week_of_day] || 'Noma’lum',
             start: item.start,
             end: item.end,
             course_name: item.course_name,
@@ -69,13 +91,11 @@ export const createStyledExcelSheet = async (data) => {
             teacher: item.teacher,
         });
 
-        // Apply body styles to all cells
         row.eachCell((cell) => {
             cell.style = bodyStyle;
         });
     });
 
-    // Auto-fit columns (if necessary)
     worksheet.columns.forEach((column) => {
         let maxLength = 0;
         column.eachCell({ includeEmpty: true }, (cell) => {
@@ -84,8 +104,28 @@ export const createStyledExcelSheet = async (data) => {
                 maxLength = length;
             }
         });
-        column.width = maxLength + 5; // Add padding
+        column.width = maxLength + 5;
     });
 
     return workbook;
+};
+export const deleteItem = async (req, res) => {
+    const { id, type } = req.body;
+    const tableName = {
+        group: 'science_groups',
+        course: 'department_courses',
+        teacher: 'department_teachers',
+        classroom: 'classrooms',
+    };
+
+    try {
+        const result = await deleteItemFromDatabase(tableName[type], id);
+        res.status(201).json({
+            message: `${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`,
+            course: result,
+        });
+    } catch (error) {
+        console.error('Error deleting item:', error.message);
+        res.status(500).json({ error: 'Failed to delete item' });
+    }
 };
