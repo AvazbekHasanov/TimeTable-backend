@@ -27,14 +27,14 @@ const { Pool } = pkg;
 
 
 const pool = new Pool({
-    user: 'postgres.bcngbqdjuayrndrejuio',
-    host: 'aws-0-ap-southeast-1.pooler.supabase.com',
-    database: 'postgres',
+    user: 'postgres',
+    host: 'localhost',
+    database: 'timetable',
     password: 'avazbek0003',
-    port: 5432,
-    ssl: {
-        rejectUnauthorized: false, // Allow self-signed certificates
-    },
+    port: 5432
+    // ssl: {
+    //     rejectUnauthorized: false, // Allow self-signed certificates
+    // },
 });
 
 export default pool;
