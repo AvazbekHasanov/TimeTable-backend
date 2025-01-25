@@ -19,10 +19,7 @@ const { Pool } = pkg;
 //     host: 'localhost',
 //     database: 'postgres',
 //     password: 'avazbek0003',
-//     port: 5432,
-//     // ssl: {
-//     //     rejectUnauthorized: false, // Add this to allow self-signed certificates
-//     // },
+//     port: 5432
 // });
 
 
