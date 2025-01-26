@@ -24,14 +24,13 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
-app.use(AcademicGroup)
-app.use(Classroom)
-app.use(Course)
-app.use(Curriculum)
-app.use(Overall)
-app.use(Teacher)
-
-app.get('/', function (req, res) {
+app.use('/api', AcademicGroup);
+app.use('/api', Classroom);
+app.use('/api', Course);
+app.use('/api', Curriculum);
+app.use('/api', Overall);
+app.use('/api', Teacher);
+app.get('/api', function (req, res) {
     res.status(200).send('Hello world');
 })
 
