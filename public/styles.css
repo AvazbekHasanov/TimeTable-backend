@@ -1,0 +1,68 @@
+/* Basic styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+
+h1 {
+    font-size: 2.5em;
+    color: #007bff;
+}
+
+.refresh-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+th {
+    background-color: #f1f1f1;
+}
+
+tr.log-error {
+    background-color: #f8d7da;
+}
+
+tr.log-warning {
+    background-color: #fff3cd;
+}
+
+tr.log-info {
+    background-color: #d4edda;
+}
+
+pre {
+    background-color: #f8f9fa;
+    padding: 10px;
+    font-size: 0.9em;
+    border-radius: 5px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}

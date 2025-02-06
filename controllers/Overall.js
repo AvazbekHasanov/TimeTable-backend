@@ -13,10 +13,10 @@ const uzbekDays = {
 };
 
 export const downloadSchedule = async (req, res) => {
-    const { teacher_id } = req.query;
+    const { teacher_id, student_id } = req.query;
 
     try {
-        const schedules = await getSchedule(teacher_id);
+        const schedules = await getSchedule(teacher_id, student_id);
         const workbook = await createStyledExcelSheet(schedules);
 
         // Set response headers

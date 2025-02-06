@@ -52,9 +52,27 @@ export const getAcademicGroupSchedule = async (req, res) => {
 export const getStudentTimetable = async (req, res) => {
     try {
         const result = await curriculumModel.getStudentTimetable(req.query.start_date,
-            req.query.student_id, req.query.teacher_id);
-        res.status(200).json({ result: result.rows });
+            req.query.group_id, req.query.teacher_id);
+        res.status(200).json({ result: result.rows});
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const getTeacherTimetable = async (req, res) => {
+    try {
+        const result = await curriculumModel.getTeacherTimetable( req.query.teacher_id);
+        res.status(200).json({ result: result.rows});
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+export const getGroup = async (req, res) => {
+    try {
+        const result = await curriculumModel.getGroup();
+        res.status(200).json({ groups: result.rows });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}

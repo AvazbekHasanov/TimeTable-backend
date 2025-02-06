@@ -14,24 +14,36 @@ const { Pool } = pkg;
 //     // },
 // });
 
+const pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'postgres',
+    password: 'avazbek0003',
+    port: 5432
+});
+
 // const pool = new Pool({
-//     user: 'postgres',
-//     host: 'localhost',
+//     user: 'postgres.bcngbqdjuayrndrejuio',
+//     host: 'aws-0-ap-southeast-1.pooler.supabase.com',
 //     database: 'postgres',
 //     password: 'avazbek0003',
-//     port: 5432
+//     port: 5432,
+//     ssl: {
+//         rejectUnauthorized: false, // Allow self-signed certificates
+//     },
 // });
 
 
-const pool = new Pool({
-    user: 'postgres.bcngbqdjuayrndrejuio',
-    host: 'aws-0-ap-southeast-1.pooler.supabase.com',
-    database: 'postgres',
-    password: 'avazbek0003',
-    port: 5432,
-    ssl: {
-        rejectUnauthorized: false, // Allow self-signed certificates
-    },
-});
+
+// const pool = new Pool({
+//     user: 'postgres.bcngbqdjuayrndrejuio',
+//     host: 'aws-0-ap-southeast-1.pooler.supabase.com',
+//     database: 'postgres',
+//     password: 'avazbek0003',
+//     port: 5432,
+//     ssl: {
+//         rejectUnauthorized: false, // Allow self-signed certificates
+//     },
+// });
 
 export default pool;

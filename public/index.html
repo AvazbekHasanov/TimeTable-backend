@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📜 Application Logs</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+  <h1>📜 Application Logs</h1>
+  <button id="refreshBtn" class="refresh-btn">🔄 Refresh Logs</button>
+
+  <table id="logTable">
+    <thead>
+    <tr>
+      <th>Time</th>
+      <th>Level</th>
+      <th>Message</th>
+      <th>Details</th>
+    </tr>
+    </thead>
+    <tbody id="logBody">
+    <!-- Logs will be dynamically injected here -->
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // Fetch logs from the server
+  async function fetchLogs() {
+    try {
+      const response = await fetch('/logs');
+      const logs = await response.json();
+      const logBody = document.getElementById('logBody');
+      logBody.innerHTML = '';
+
+      // Loop through logs and insert rows into the table
+      logs.forEach(log => {
+        const row = document.createElement('tr');
+        row.className = getLogClass(log);
+
+        row.innerHTML = `
+                        <td>${log.timestamp}</td>
+                        <td>${log.level}</td>
+                        <td>${log.message}</td>
+                        <td><pre>${JSON.stringify(log, null, 2)}</pre></td>
+                    `;
+
+        logBody.appendChild(row);
+      });
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    }
+  }
+
+  // Set row color based on log level
+  function getLogClass(log) {
+    if (log.level === 'error') return 'log-error';
+    if (log.level === 'warn') return 'log-warning';
+    return 'log-info';
+  }
+
+  // Refresh logs when button is clicked
+  document.getElementById('refreshBtn').addEventListener('click', fetchLogs);
+
+  // Load logs when the page loads
+  window.onload = fetchLogs;
+</script>
+</body>
+</html>
